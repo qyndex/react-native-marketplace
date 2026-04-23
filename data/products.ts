@@ -1,3 +1,8 @@
+/**
+ * Fallback product data used when Supabase is unavailable.
+ * The app fetches real listings from the database — this file
+ * is kept for tests and offline-first scenarios.
+ */
 import type { Product } from '@/types/marketplace';
 
 export const MOCK_PRODUCTS: Product[] = [

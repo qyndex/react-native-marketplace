@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   TextInput,
   Platform,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -15,23 +17,30 @@ import { ProductCard } from '@/components/ProductCard';
 import { useCartStore } from '@/store/cartStore';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { MOCK_PRODUCTS } from '@/data/products';
-import type { Product } from '@/types/marketplace';
+import { useListings } from '@/hooks/useListings';
+import { CATEGORIES, listingToProduct } from '@/types/marketplace';
+import type { Category, ListingWithSeller } from '@/types/marketplace';
 
-const CATEGORIES = ['All', 'Electronics', 'Clothing', 'Home', 'Sports'];
-
-export default function ShopScreen() {
+export default function BrowseScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
   const { addItem, totalItems } = useCartStore();
   const [query, setQuery] = useState('');
-  const [category, setCategory] = useState('All');
+  const [category, setCategory] = useState<Category>('All');
 
-  const filtered: Product[] = MOCK_PRODUCTS.filter((p) => {
-    const matchQuery = p.name.toLowerCase().includes(query.toLowerCase());
-    const matchCat = category === 'All' || p.category === category;
-    return matchQuery && matchCat;
-  });
+  const { listings, loading, refresh } = useListings(query, category);
+
+  const renderItem = ({ item }: { item: ListingWithSeller }) => (
+    <ProductCard
+      product={listingToProduct(item)}
+      imageUrl={item.image_urls?.[0]}
+      sellerName={item.seller?.full_name}
+      onPress={() =>
+        router.push({ pathname: '/listing/[id]', params: { id: item.id } })
+      }
+      onAddToCart={() => addItem(listingToProduct(item))}
+    />
+  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -40,12 +49,17 @@ export default function ShopScreen() {
           <Ionicons name="search-outline" size={18} color={colors.icon} />
           <TextInput
             style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Search products..."
+            placeholder="Search listings..."
             placeholderTextColor={colors.subtext}
             value={query}
             onChangeText={setQuery}
-            accessibilityLabel="Search products"
+            accessibilityLabel="Search listings"
           />
+          {query.length > 0 && (
+            <TouchableOpacity onPress={() => setQuery('')} accessibilityLabel="Clear search">
+              <Ionicons name="close-circle" size={18} color={colors.subtext} />
+            </TouchableOpacity>
+          )}
         </View>
         <TouchableOpacity
           style={styles.cartBtn}
@@ -63,7 +77,7 @@ export default function ShopScreen() {
 
       <FlatList
         horizontal
-        data={CATEGORIES}
+        data={CATEGORIES as unknown as Category[]}
         keyExtractor={(c) => c}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.catList}
@@ -84,25 +98,28 @@ export default function ShopScreen() {
         )}
       />
 
-      <FlatList
-        data={filtered}
-        keyExtractor={(p) => p.id}
-        numColumns={Platform.select({ web: 3, default: 2 })}
-        key={Platform.select({ web: 'web', default: 'native' })}
-        contentContainerStyle={styles.grid}
-        renderItem={({ item }) => (
-          <ProductCard
-            product={item}
-            onPress={() =>
-              router.push({ pathname: '/product/[id]', params: { id: item.id } })
-            }
-            onAddToCart={() => addItem(item)}
-          />
-        )}
-        ListEmptyComponent={
-          <Text style={[styles.empty, { color: colors.subtext }]}>No products found.</Text>
-        }
-      />
+      {loading && listings.length === 0 ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.tint} />
+        </View>
+      ) : (
+        <FlatList
+          data={listings}
+          keyExtractor={(l) => l.id}
+          numColumns={Platform.select({ web: 3, default: 2 })}
+          key={Platform.select({ web: 'web', default: 'native' })}
+          contentContainerStyle={styles.grid}
+          refreshControl={
+            <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.tint} />
+          }
+          renderItem={renderItem}
+          ListEmptyComponent={
+            <Text style={[styles.empty, { color: colors.subtext }]}>
+              No listings found.
+            </Text>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -144,4 +161,5 @@ const styles = StyleSheet.create({
   catLabel: { fontSize: 13, fontWeight: '500' },
   grid: { padding: 8 },
   empty: { textAlign: 'center', marginTop: 40, fontSize: 16 },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60 },
 });

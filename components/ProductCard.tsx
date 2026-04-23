@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Platform } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Platform, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -7,11 +7,13 @@ import type { Product } from '@/types/marketplace';
 
 interface ProductCardProps {
   product: Product;
+  imageUrl?: string;
+  sellerName?: string;
   onPress: () => void;
   onAddToCart: () => void;
 }
 
-export function ProductCard({ product, onPress, onAddToCart }: ProductCardProps) {
+export function ProductCard({ product, imageUrl, sellerName, onPress, onAddToCart }: ProductCardProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
 
@@ -22,19 +24,29 @@ export function ProductCard({ product, onPress, onAddToCart }: ProductCardProps)
       activeOpacity={0.85}
       accessibilityLabel={`${product.name}, $${product.price.toFixed(2)}`}
     >
-      <View style={[styles.imagePlaceholder, { backgroundColor: colors.tint + '22' }]}>
-        <Ionicons name="cube-outline" size={40} color={colors.tint} />
-      </View>
+      {imageUrl ? (
+        <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
+      ) : (
+        <View style={[styles.imagePlaceholder, { backgroundColor: colors.tint + '22' }]}>
+          <Ionicons name="cube-outline" size={40} color={colors.tint} />
+        </View>
+      )}
       <View style={styles.info}>
         <Text style={[styles.name, { color: colors.text }]} numberOfLines={2}>
           {product.name}
         </Text>
-        <View style={styles.ratingRow}>
-          <Ionicons name="star" size={12} color="#f59e0b" />
-          <Text style={[styles.rating, { color: colors.subtext }]}>
-            {product.rating} ({product.reviewCount})
+        {sellerName ? (
+          <Text style={[styles.seller, { color: colors.subtext }]} numberOfLines={1}>
+            {sellerName}
           </Text>
-        </View>
+        ) : product.rating > 0 ? (
+          <View style={styles.ratingRow}>
+            <Ionicons name="star" size={12} color="#f59e0b" />
+            <Text style={[styles.rating, { color: colors.subtext }]}>
+              {product.rating} ({product.reviewCount})
+            </Text>
+          </View>
+        ) : null}
         <View style={styles.priceRow}>
           <Text style={[styles.price, { color: colors.tint }]}>
             ${product.price.toFixed(2)}
@@ -71,6 +83,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
   },
+  image: {
+    height: 120,
+    width: '100%',
+  },
   imagePlaceholder: {
     height: 120,
     alignItems: 'center',
@@ -78,6 +94,7 @@ const styles = StyleSheet.create({
   },
   info: { padding: 10 },
   name: { fontSize: 13, fontWeight: '600', marginBottom: 4, lineHeight: 18 },
+  seller: { fontSize: 11, marginBottom: 6 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 6 },
   rating: { fontSize: 11 },
   priceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
